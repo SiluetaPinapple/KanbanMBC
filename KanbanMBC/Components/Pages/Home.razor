@@ -1,0 +1,129 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+	 <head>
+		<title>MOS E-Kanban (MBC)</title>
+		<link rel="icon" type="image/x-icon" href="/images/OIP.jpg"/>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+		<script>
+			window.addEventListener("load", () => {
+  clock();
+  function clock() {
+	const today = new Date();
+
+	// get time components
+	const hours = today.getHours();
+	const minutes = today.getMinutes();
+	const seconds = today.getSeconds();
+	const years = today.getFullYear;
+
+	//add '0' to hour, minute & second when they are less 10
+	const hour = hours < 10 ? "0" + hours : hours;
+	const minute = minutes < 10 ? "0" + minutes : minutes;
+	const second = seconds < 10 ? "0" + seconds : seconds;
+
+	//make clock a 12-hour time clock
+	const hourTime = hour > 12 ? hour - 12 : hour;
+
+	// if (hour === 0) {
+	//   hour = 12;
+	// }
+	//assigning 'am' or 'pm' to indicate time of the day
+	const ampm = hour < 12 ? "AM" : "PM";
+
+	// get date components
+	const month = today.getMonth();
+	const year = today.getFullYear();
+	const day = today.getDate();
+
+	//declaring a list of all months in  a year
+	const monthList = [
+	  "January",
+	  "February",
+	  "March",
+	  "April",
+	  "May",
+	  "June",
+	  "July",
+	  "August",
+	  "September",
+	  "October",
+	  "November",
+	  "December"
+	];
+
+	//get current date and time
+	const date = monthList[month] + " " + day + ", " + year;
+	const time = hourTime + ":" + minute + ":" + second + ampm;
+
+	//combine current date and time
+	const dateTime = date + " - " + time;
+
+	//print current date and time to the DOM
+	document.getElementById("date-time").innerHTML = dateTime;
+	setTimeout(clock, 1000);
+
+	document.getElementById("year").innerHTML = dateTime.setTimeout(years);
+  }
+});
+		</script>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+				<div id="clock">
+					<h4 id="date-time"></h4>
+				  </div>
+					<header id="header">
+						<div class="logo">
+							<span class="icon fa-diamond"></span>
+						</div>
+						<div class="content">
+							<div class="inner">
+								<h1>Welcome to MOS E - Kanban (MBC)!</h1>
+								<p> We are dedicated to optimizing workflow efficiency through a streamlined Kanban system. Our goal is to enhance visibility, improve task management, and ensure smooth operations, enabling teams to collaborate effectively and achieve continuous improvement.</p>
+							</div>
+						</div>
+						<nav>
+							<ul>
+						
+								
+								<li><a href="/logins/TL" target="_blank">Team Leaders </a></li>
+								<li><a href="/logins/Feeder" target="_blank">Feeder </a></li>
+								<li><a href="/loginmodels/admin" target="_blank">Admin </a></li>
+	
+							</ul>
+
+						</nav>
+					</header>
+
+
+                 <!-- Footer -->
+<footer id="footer">
+    <p class="copyright">
+        <a href="#" target="_blank">MOS Team</a> - &copy; 
+        <a href="https://hddpkaushalya.github.io/DakshinaPrasad/Dakshina/index.html" target="_blank">Created by H.D.Dakshina Prasad Kaushalya</a>
+    </p>
+</footer>
+
+
+			</div>
+
+		<!-- BG -->
+			<div id="bg"></div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+
+	</body>

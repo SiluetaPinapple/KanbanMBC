@@ -1,0 +1,107 @@
+﻿@page "/logins/Feeder"
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Login</PageTitle>
+
+<div class="container mt-5">
+    <div class="card shadow-lg border-light">
+        <div class="card-header bg-primary text-white text-center">
+            <h3 class="mb-0">Create Feeder Login</h3>
+        </div>
+        <div class="card-body">
+            <!-- Use the EditForm Model binding approach -->
+            <EditForm Model="Login" OnValidSubmit="@AddLogin" FormName="Create">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+
+                <!-- Feeder Dropdown -->
+                <div class="mb-4">
+                    <label for="modules" class="form-label fw-bold">Feeder</label>
+                    <InputSelect id="modules" @bind-Value="@Login.MODULES" class="form-select form-control-lg">
+                        <option value="">-- Select Module --</option>
+                        @foreach (var module in Modules)
+                        {
+                                <option value="@module.FeederName">@module.FeederName</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => Login.MODULES)" class="text-danger" />
+                </div>
+
+                <!-- EPF Input -->
+                <div class="mb-4">
+                    <label for="epf" class="form-label fw-bold">EPF</label>
+                    <InputText id="epf" @bind-Value="@Login.EPF" class="form-control form-control-lg" placeholder="Enter EPF" />
+                    <ValidationMessage For="@(() => Login.EPF)" class="text-danger" />
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-lg btn-primary">Submit</button>
+                </div>
+
+            </EditForm>
+
+            <!-- Error Message -->
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                    <div class="alert alert-danger mt-3">
+                    @ErrorMessage
+                    </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Login Login { get; set; } = new();
+
+    private List<Feeder> Modules { get; set; } = new();
+    private List<Feeder> Modules1 { get; set; } = new();
+    private string ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        Modules = await context.Feeder
+            .AsNoTracking()
+            .Select(d => new Feeder
+                {
+                    FeederName = d.FeederName,
+                    EPF = d.EPF
+                })
+            .Distinct()
+            .ToListAsync();
+    }
+
+    private async Task AddLogin()
+    {
+        ErrorMessage = string.Empty;
+        Login.Date = DateTime.UtcNow;
+        Login.Heads = "Feeder";
+
+        await using var context = await DbFactory.CreateDbContextAsync();
+
+        Modules1 = await context.Feeder
+            .AsNoTracking()
+            .Where(d => d.EPF == Login.EPF && d.FeederName == Login.MODULES)
+            .ToListAsync();
+
+        if (Modules1.Any())
+        {
+            context.Login.Add(Login);
+            await context.SaveChangesAsync();
+            NavigationManager.NavigateTo($"/pullrequests?name={Login.MODULES}");
+        }
+        else
+        {
+            ErrorMessage = "EPF not available for the chosen feeder!";
+        }
+    }
+}
+
+

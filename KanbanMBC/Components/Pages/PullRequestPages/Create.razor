@@ -1,0 +1,260 @@
+﻿@page "/pullrequests/create"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@using KanbanMBC.Data
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<PageTitle>TL Request</PageTitle>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" />
+
+<h1>@module</h1>
+
+<div class="table-responsive">
+    <table class="table table-hover table-striped table-bordered rounded-4">
+        <thead class="bg-dark text-white rounded-top">
+            <tr>
+                <th>Heads</th>
+                <th>Request</th>
+                <th>Pending</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (modules?.Any() == true)
+            {
+                @foreach (var moduleItem in modules)
+                {
+                    var activePullRequest = PullRequests.FirstOrDefault(pr =>
+                        pr.Head == moduleItem.Heads &&
+                        (pr.TepKey == "Pen" || pr.TepKey == "Ten"));
+
+                    <tr class="align-middle">
+                        <td>
+                            <i class="bi bi-robot"></i> @moduleItem.Heads
+                        </td>
+                        <td>
+                            @if (activePullRequest != null)
+                            {
+                                <span>Request Sent</span>
+                            }
+                            else
+                            {
+                                <!-- No active request: show the Cut Kit button -->
+                                <EditForm Model="@newPullRequest"
+                                          OnValidSubmit="@(() => AddPullRequest(moduleItem.Heads))"
+                                          FormName="@($"{module}-{moduleItem.Heads}-Create")">
+                                    <input type="hidden" name="Head" value="@moduleItem.Heads" />
+                                    <input type="hidden" name="Shift" value="@shift" />
+                                    <input type="hidden" name="TepKey" value="Pen" />
+                                    <input type="hidden" name="Date" value="@DateTime.Today" />
+                                    <input type="hidden" name="Model" value="@module" />
+                                    @if (fedder != null)
+                                    {
+                                        <input type="hidden" name="FedderA" value="@fedder.ShiftA" />
+                                        <input type="hidden" name="FedderB" value="@fedder.ShiftB" />
+                                    }
+                                    <button type="submit" class="btn btn-primary">Cut Kit</button>
+                                </EditForm>
+                            }
+                        </td>
+                        <td>
+                            @if (activePullRequest != null)
+                            {
+                                @switch (activePullRequest.TepKey)
+                                {
+                                    case "Pen":
+                                        <span>Cut Required</span>
+                                        break;
+                                    case "Ten":
+                                        <!-- Show Bin Feild button to update from "Ten" to "Done" -->
+                                        <EditForm Model="@activePullRequest"
+                                                  OnValidSubmit="@(() => UpdatePullRequest(activePullRequest))"
+                                                  FormName="@($"{module}-{activePullRequest.Head}-Update")">
+                                            <button type="submit" class="btn btn-primary">Bin Feild</button>
+                                        </EditForm>
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                <span>No Pending Request</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="3" class="text-center text-muted">
+                        No records found for the selected date.
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+    // Query parameters.
+    [SupplyParameterFromQuery]
+    public string? module { get; set; }
+    [SupplyParameterFromQuery]
+    public string? shift { get; set; }
+
+    // Data lists.
+    private List<Dataset> modules { get; set; } = new();
+    private FredderAssign? fedder { get; set; }
+    private List<PullRequest> PullRequests { get; set; } = new();
+
+    // Temporary instance for new requests.
+    private PullRequest newPullRequest = new PullRequest();
+
+    // SignalR Hub connection.
+    private HubConnection? _hubConnection;
+
+    // Timer for periodic refresh
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = await DbFactory.CreateDbContextAsync();
+
+        // Load distinct heads from the Dataset.
+        modules = await context.Dataset
+            .AsNoTracking()
+            .Select(d => new Dataset { Heads = d.Heads })
+            .Distinct()
+            .Skip(1)
+            .ToListAsync();
+
+        // Load feeder assignment details.
+        fedder = await context.FredderAssign
+            .AsNoTracking()
+            .FirstOrDefaultAsync(g => g.Lin == module);
+
+        // Load pull requests for this module for today.
+        PullRequests = await context.PullRequest
+            .AsNoTracking()
+            .Where(pr => pr.Model == module && pr.Date == DateTime.Today)
+            .ToListAsync();
+
+        // Setup the SignalR Hub connection.
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/pullRequestHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On("RefreshPullRequests", async () =>
+        {
+            await RefreshData();
+        });
+
+        await _hubConnection.StartAsync();
+
+        // Start a timer to refresh data every 5 seconds
+        _timer = new System.Threading.Timer(
+            async _ =>
+            {
+                await RefreshData();
+                await InvokeAsync(StateHasChanged);
+            },
+            null,
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(5)
+        );
+    }
+
+    /// <summary>
+    /// Reload pull requests from the database.
+    /// </summary>
+    private async Task RefreshData()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        PullRequests = await context.PullRequest
+            .AsNoTracking()
+            .Where(pr => pr.Model == module && pr.Date == DateTime.Today)
+            .ToListAsync();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Create a new pull request (TepKey = "Pen").
+    /// </summary>
+    private async Task AddPullRequest(string head)
+    {
+        using var context = await DbFactory.CreateDbContextAsync();
+        var pullRequest = new PullRequest
+            {
+                Head = head,
+                Shift = shift,
+                TepKey = "Pen",
+                Date = DateTime.Today,
+                Model = module,
+                FedderA = fedder?.ShiftA,
+                FedderB = fedder?.ShiftB
+            };
+
+        context.PullRequest.Add(pullRequest);
+        await context.SaveChangesAsync();
+
+        PullRequests.Add(pullRequest);
+        await InvokeAsync(StateHasChanged);
+
+        // Notify all connected clients about the update.
+        if (_hubConnection != null)
+        {
+            await _hubConnection.SendAsync("NotifyPullRequestUpdated");
+        }
+    }
+
+    /// <summary>
+    /// Update pull request status from "Ten" to "Done".
+    /// </summary>
+    private async Task UpdatePullRequest(PullRequest pullRequest)
+    {
+        using var context = await DbFactory.CreateDbContextAsync();
+        var existingRequest = await context.PullRequest.FirstOrDefaultAsync(pr =>
+            pr.Head == pullRequest.Head &&
+            pr.Date == DateTime.Today &&
+            pr.Model == pullRequest.Model &&
+            pr.TepKey == "Ten");
+
+        if (existingRequest != null)
+        {
+            existingRequest.TepKey = "Done";
+            await context.SaveChangesAsync();
+
+            var localItem = PullRequests.FirstOrDefault(pr => pr.ID == pullRequest.ID);
+            if (localItem != null)
+            {
+                localItem.TepKey = "Done";
+            }
+            await InvokeAsync(StateHasChanged);
+
+            // Notify all connected clients about the update.
+            if (_hubConnection != null)
+            {
+                await _hubConnection.SendAsync("NotifyPullRequestUpdated");
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Dispose the timer
+        _timer?.Dispose();
+        _timer = null;
+
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.StopAsync();
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

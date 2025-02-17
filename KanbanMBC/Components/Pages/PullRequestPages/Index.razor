@@ -1,0 +1,225 @@
+﻿@page "/pullrequests"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@using KanbanMBC.Data
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+@implements IAsyncDisposable
+
+<PageTitle>Pull Requests</PageTitle>
+
+
+<h1 class="mb-4 text-center">Pull Requests</h1>
+
+<div class="table-responsive">
+    <table class="table table-hover table-bordered text-center align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Module</th>
+                @foreach (var head in Heads)
+                {
+                    <th>@head.Heads</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var module in Modules)
+            {
+                <tr>
+                    <td class="fw-bold">@module.Lin</td>
+                    @foreach (var head in Heads)
+                    {
+                        <td>
+                            @{
+                                var pr = PullRequests.FirstOrDefault(p => p.Model == module.Lin && p.Head == head.Heads);
+                                string bgClass = "bg-success text-white";
+                                if (pr != null)
+                                {
+                                    bgClass = pr.TepKey switch
+                                    {
+                                        "Pen" => "bg-danger text-white",
+                                        "Ten" => "bg-warning text-dark",
+                                        _ => "bg-success text-white"
+                                    };
+                                }
+                            }
+                            <div class="p-2 rounded @bgClass">
+                                @if (pr != null)
+                                {
+                                    <div>@pr.Head</div>
+                                    @if (pr.TepKey == "Pen")
+                                    {
+                                                        <EditForm Model="@pr" OnValidSubmit="@(() => AcceptPullRequest(pr))"  FormName="@($"{module.Lin}-{head.Heads}-Accept")">
+                                            <button type="submit" class="btn btn-light btn-sm mt-1">Accept</button>
+                                        </EditForm>
+                                    }
+                                    else if (pr.TepKey == "Ten")
+                                    {
+                                        <span>Accepted</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span>No request</span>
+                                }
+                            </div>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+
+    // Modules come from FredderAssign (using the Lin property)
+    private List<FredderAssign> Modules { get; set; } = new();
+
+    // Heads come from the Dataset table
+    private List<Dataset> Heads { get; set; } = new();
+
+    // PullRequests for today
+    private List<PullRequest> PullRequests { get; set; } = new();
+
+    // Query parameter used to filter by Fedder assignments
+    [SupplyParameterFromQuery]
+    public string? name { get; set; }
+
+    // SignalR Hub connection.
+    private HubConnection? _hubConnection;
+
+    // Timer for 5-second periodic refresh
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load initial data.
+        await LoadData();
+
+        // Setup the SignalR Hub connection.
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/pullRequestHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        // When the hub sends a "RefreshPullRequests" event, refresh the pull request data.
+        _hubConnection.On("RefreshPullRequests", async () =>
+        {
+            await RefreshData();
+        });
+
+        await _hubConnection.StartAsync();
+
+        // Start the timer for periodic refresh every 5 seconds.
+        _timer = new System.Threading.Timer(
+            async _ =>
+            {
+                // Call RefreshData and then force the UI to update
+                await RefreshData();
+                await InvokeAsync(StateHasChanged);
+            },
+            null,                   // state object
+            TimeSpan.FromSeconds(5), // initial due time
+            TimeSpan.FromSeconds(5)  // subsequent interval
+        );
+    }
+
+    /// <summary>
+    /// Loads the initial data for Modules, Heads, and PullRequests.
+    /// </summary>
+    private async Task LoadData()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+
+        // Load modules where ShiftA or ShiftB equals the provided name.
+        Modules = await context.FredderAssign
+            .AsNoTracking()
+            .Where(d => d.ShiftB == name || d.ShiftA == name)
+            .Distinct()
+            .ToListAsync();
+
+        // Load distinct heads from the Dataset.
+        Heads = await context.Dataset
+            .AsNoTracking()
+            .Select(d => new Dataset { Heads = d.Heads })
+            .Distinct()
+            .Skip(1)
+            .ToListAsync();
+
+        // Load all pull requests for today.
+        var today = DateTime.Today;
+        PullRequests = await context.PullRequest
+            .AsNoTracking()
+            .Where(p => (p.FedderA == name || p.FedderB == name)
+                        && p.Date == today && (p.TepKey == "Pen" || p.TepKey == "Ten"))
+            .Distinct()
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Refreshes only the pull request data from the database.
+    /// </summary>
+    private async Task RefreshData()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        var today = DateTime.Today;
+        PullRequests = await context.PullRequest
+            .AsNoTracking()
+            .Where(p => (p.FedderA == name || p.FedderB == name)
+                        && p.Date == today)
+            .Distinct()
+            .ToListAsync();
+
+        // You may already be calling StateHasChanged from the timer or
+        // after hub updates, but if you want to ensure the UI refreshes
+        // always here, you could add:
+        // await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Accepts a pull request by updating its status from "Pen" to "Ten".
+    /// </summary>
+    private async Task AcceptPullRequest(PullRequest pr)
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+
+        var pullRequest = await context.PullRequest.FirstOrDefaultAsync(x => x.ID == pr.ID);
+        if (pullRequest != null && pullRequest.TepKey == "Pen")
+        {
+            pullRequest.TepKey = "Ten"; // Update to yellow state.
+            await context.SaveChangesAsync();
+
+            var localPR = PullRequests.FirstOrDefault(x => x.ID == pr.ID);
+            if (localPR != null)
+            {
+                localPR.TepKey = "Ten";
+            }
+            StateHasChanged();
+
+            // Notify all connected clients about the update.
+            if (_hubConnection != null)
+            {
+                await _hubConnection.SendAsync("NotifyPullRequestUpdated");
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Stop and dispose the timer
+        _timer?.Dispose();
+        _timer = null;
+
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.StopAsync();
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
+
+

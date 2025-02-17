@@ -1,0 +1,49 @@
+﻿@page "/feeders/create"
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Feeder</PageTitle>
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-lg p-4" style="width: 400px;">
+        <h3 class="text-center">Create Feeder</h3>
+        <hr />
+        <EditForm method="post" Model="Feeder" OnValidSubmit="AddFeeder" FormName="create" class="needs-validation" novalidate>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+
+            <div class="mb-3">
+                <label for="epf" class="form-label">EPF:</label>
+                <InputText id="epf" @bind-Value="Feeder.EPF" class="form-control" placeholder="Enter EPF number" />
+                <ValidationMessage For="() => Feeder.EPF" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label for="feedername" class="form-label">Feeder Name:</label>
+                <InputText id="feedername" @bind-Value="Feeder.FeederName" class="form-control" placeholder="Enter feeder name" />
+                <ValidationMessage For="() => Feeder.FeederName" class="text-danger" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Create</button>
+        </EditForm>
+
+        <div class="text-center mt-3">
+            <a href="/feeders" class="text-decoration-none">Back to List</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Feeder Feeder { get; set; } = new();
+
+    private async Task AddFeeder()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Feeder.Add(Feeder);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/feeders");
+    }
+}

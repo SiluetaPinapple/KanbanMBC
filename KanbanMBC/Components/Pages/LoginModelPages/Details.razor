@@ -1,0 +1,46 @@
+﻿@page "/loginmodels/details"
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>LoginModel</h2>
+    <hr />
+    @if (loginmodel is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">Password</dt>
+            <dd class="col-sm-10">@loginmodel.Password</dd>
+        </dl>
+        <div>
+            <a href="@($"/loginmodels/edit?username={loginmodel.Username}")">Edit</a> |
+            <a href="@($"/loginmodels")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private LoginModel? loginmodel;
+
+    [SupplyParameterFromQuery]
+    private string Username { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        loginmodel = await context.LoginModel.FirstOrDefaultAsync(m => m.Username == Username);
+
+        if (loginmodel is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+}

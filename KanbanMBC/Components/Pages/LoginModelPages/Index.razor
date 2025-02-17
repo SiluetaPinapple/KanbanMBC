@@ -1,0 +1,36 @@
+﻿@page "/loginmodels"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using KanbanMBC.Components.Models
+@using KanbanMBC.Data
+@implements IAsyncDisposable
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<p>
+    <a href="loginmodels/create">Create New</a>
+</p>
+
+<QuickGrid Class="table" Items="context.LoginModel">
+    <PropertyColumn Property="loginmodel => loginmodel.Password" />
+
+    <TemplateColumn Context="loginmodel">
+        <a href="@($"loginmodels/edit?username={loginmodel.Username}")">Edit</a> |
+        <a href="@($"loginmodels/details?username={loginmodel.Username}")">Details</a> |
+        <a href="@($"loginmodels/delete?username={loginmodel.Username}")">Delete</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private KanbanMBCContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

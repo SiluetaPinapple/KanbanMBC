@@ -1,0 +1,86 @@
+﻿@page "/fredderassigns"
+
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using KanbanMBC.Components.Models
+@using KanbanMBC.Data
+
+@implements IAsyncDisposable
+@inject IDbContextFactory<KanbanMBCContext> DbFactory
+
+<PageTitle>Feeder Assign</PageTitle>
+
+<!-- Bootstrap Container -->
+<div class="container mt-4">
+
+    <!-- Page Heading -->
+    <h1 class="mb-4">Feeder Assign</h1>
+    <hr />
+
+    <!-- Table in a row/column layout -->
+    <div class="row">
+        <div class="col-md-12">
+
+            <!-- Added table-hover and table-striped for nicer styling -->
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Modules</th>
+                        <th>Shift A</th>
+                        <th>Shift B</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var module in Modules)
+                    {
+                        <tr>
+                            <td>@module.Lin</td>
+                            <td>@module.ShiftA</td>
+                            <td>@module.ShiftB</td>
+                            <td>
+                                <a href="@($"fredderassigns/edit?lin={module.Lin}")" class="btn btn-warning">Edit</a>
+                                <span class="mx-1">|</span>
+                                <a href="@($"fredderassigns/delete?lin={module.Lin}")" class="btn btn-danger">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    // Store the DbContext in a private field so we can dispose of it later
+    private KanbanMBCContext? _context;
+    private List<FredderAssign> Modules { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize the DbContext
+        _context = await DbFactory.CreateDbContextAsync();
+
+        // Retrieve the data you need, including ShiftA and ShiftB
+        Modules = await _context.FredderAssign
+            .AsNoTracking()
+            .Select(d => new FredderAssign
+                {
+                    Lin = d.Lin,
+                    ShiftA = d.ShiftA,
+                    ShiftB = d.ShiftB
+                })
+            .Distinct()
+            .ToListAsync();
+    }
+
+    // Dispose the context when the component is disposed
+    public async ValueTask DisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

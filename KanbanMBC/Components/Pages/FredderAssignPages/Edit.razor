@@ -1,0 +1,208 @@
+﻿@page "/fredderassigns/edit"
+
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@using KanbanMBC.Data
+
+@implements IAsyncDisposable
+
+@inject IDbContextFactory<KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<!-- Main Container -->
+<div class="mt-4">
+    <NavLink href="/feeders">
+        <button class="btn btn-primary"><i class="bi bi-plus-square"></i> &nbsp; New Feeder</button>
+        </NavLink>
+ 
+ </div>
+<div class="container my-5">
+         
+    <!-- Center the card in the middle column -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+       
+            <!-- Card Component -->
+            <div class="card shadow">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Edit FredderAssign</h3>
+                </div>
+                <div class="card-body">
+
+                    @if (FredderAssign is null)
+                    {
+                        <p><em>Loading...</em></p>
+                    }
+                    else
+                    {
+                        <!-- Edit Form -->
+                        <EditForm Model="FredderAssign" OnValidSubmit="UpdateFredderAssign" FormName="edite">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <!-- Hidden field for the primary key (Lin) -->
+                            <input type="hidden" name="FredderAssign.Lin" value="@FredderAssign.Lin" />
+
+                            <!-- Module (Line) Display -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Module (Line)</label>
+                                <div class="form-control-plaintext">
+                                   <h2> @FredderAssign.Lin</h2>
+                                </div>
+                            </div>
+
+                            <!-- Shift A Section -->
+                            <h5 class="mt-4 mb-3">Shift A</h5>
+
+                            <div class="row g-3">
+                                <!-- Shift A Dropdown -->
+                                <div class="col-md-6">
+                                    <label for="shiftASelect" class="form-label">Select Existing Feeder A:</label>
+                                    <InputSelect id="shiftASelect" @bind-Value="FredderAssign.ShiftA" class="form-select">
+                                        <option disabled>-- Select --</option>
+                                        @foreach (var module in Modules)
+                                        {
+                                           
+                                            
+                                                <option value="@module.FeederName">@module.FeederName</option>
+                                            
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="() => FredderAssign.ShiftA" class="text-danger" />
+                                </div>
+                                </div>
+
+                          
+                               
+                            <!-- Shift B Section -->
+                            <h5 class="mt-4 mb-3">Shift B</h5>
+
+                            <div class="row g-3">
+                                <!-- Shift B Dropdown -->
+                                <div class="col-md-6">
+                                    <label for="shiftBSelect" class="form-label">Select Existing Feeder B:</label>
+                                    <InputSelect id="shiftBSelect" @bind-Value="FredderAssign.ShiftB" class="form-select">
+                                        <option disabled>-- Select --</option>
+                                        @foreach (var module in Modules)
+                                        {
+                                         
+                                                <option value="@module.FeederName">@module.FeederName</option>
+                                            
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="() => FredderAssign.ShiftB" class="text-danger" />
+                                </div>
+
+                                <!-- New Shift B Text Input -->
+                          
+                            </div>
+
+                            <!-- Save Button -->
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save me-1"></i> Save
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/fredderassigns" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string Lin { get; set; } = default!;
+
+    private KanbanMBCContext? _context;
+    private List<Feeder> Modules { get; set; } = new();
+    private FredderAssign? FredderAssign { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Create and store the DbContext
+        _context = await DbFactory.CreateDbContextAsync();
+
+        // Load the target record
+        FredderAssign = await LoadFredderAssignAsync(Lin);
+
+        // If not found, navigate to 'notfound' or handle accordingly
+        if (FredderAssign is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        // Load existing feeders for the dropdown lists
+        Modules = await LoadModulesAsync();
+    }
+
+    private async Task<FredderAssign?> LoadFredderAssignAsync(string lin)
+    {
+        return await _context!.FredderAssign
+            .FirstOrDefaultAsync(m => m.Lin == lin);
+    }
+
+    private async Task<List<Feeder>> LoadModulesAsync()
+    {
+        return await _context!.Feeder
+            .AsNoTracking()
+            .Select(d => new Feeder
+                {
+                    EPF = d.EPF,
+                    FeederName = d.FeederName
+                })
+            .Distinct()
+            .ToListAsync();
+    }
+
+    private async Task UpdateFredderAssign()
+    {
+        if (FredderAssign is null)
+            return;
+
+        _context!.Attach(FredderAssign).State = EntityState.Modified;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!FredderAssignExists(FredderAssign.Lin))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                // In production, you might show a friendly error message or handle concurrency more gracefully
+                throw;
+            }
+        }
+
+        // Navigate back to the list
+        NavigationManager.NavigateTo("/fredderassigns");
+    }
+
+    private bool FredderAssignExists(string lin)
+    {
+        return _context!.FredderAssign.Any(e => e.Lin == lin);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,89 @@
+﻿/* Overall page variables */
+:root {
+    --card-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background-color: #fafafa;
+}
+
+h1 {
+    
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1.25rem;
+}
+
+/* Table container styling */
+.table-responsive {
+    margin-top: 1.5rem;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    padding: 1rem;
+}
+
+/* Make the table look larger and more spaced */
+.table {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+}
+
+    .table th,
+    .table td {
+        padding: 1rem; /* Increase cell padding */
+        font-size: 1.05rem; /* Slightly increase font size */
+        vertical-align: middle; /* Center align vertically */
+    }
+
+    /* Table head background */
+    .table thead {
+        background-color: #343a40;
+        color: #fff !important;
+    }
+
+    /* Hover effect on rows */
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+/* Improved button styling */
+.btn-primary {
+    border: none;
+    border-radius: 1.5rem;
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    color: #fff;
+    background-color: darkorange;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+    /* Button hover: shift color and lift slightly */
+    .btn-primary:hover {
+        background: linear-gradient(90deg, #0056b3 0%, #007bff 100%);
+        transform: translateY(-2px);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+/* 'Back to List' link styling */
+a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+    a:hover {
+        text-decoration: underline;
+        color: #0056b3;
+    }
+
+/* Subtle text for 'No records found...' */
+.text-muted {
+    color: #6c757d !important;
+    font-style: italic;
+}

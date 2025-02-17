@@ -1,0 +1,89 @@
+﻿@page "/loginmodels/edit"
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>LoginModel</h2>
+<hr />
+@if (LoginModel is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="LoginModel" OnValidSubmit="UpdateLoginModel" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="LoginModel.Username" value="@LoginModel.Username" />
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password:</label>
+                    <InputText id="password" @bind-Value="LoginModel.Password" class="form-control" />
+                    <ValidationMessage For="() => LoginModel.Password" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/loginmodels">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string Username { get; set; }
+
+    [SupplyParameterFromForm]
+    private LoginModel? LoginModel { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        LoginModel ??= await context.LoginModel.FirstOrDefaultAsync(m => m.Username == Username);
+
+        if (LoginModel is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateLoginModel()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(LoginModel!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!LoginModelExists(LoginModel!.Username))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/loginmodels");
+    }
+
+    private bool LoginModelExists(string username)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.LoginModel.Any(e => e.Username == username);
+    }
+}

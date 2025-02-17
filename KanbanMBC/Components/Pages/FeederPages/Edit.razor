@@ -1,0 +1,89 @@
+﻿@page "/feeders/edit"
+@using Microsoft.EntityFrameworkCore
+@using KanbanMBC.Components.Models
+@inject IDbContextFactory<KanbanMBC.Data.KanbanMBCContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Feeder</h2>
+<hr />
+@if (Feeder is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Feeder" OnValidSubmit="UpdateFeeder" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Feeder.EPF" value="@Feeder.EPF" />
+                <div class="mb-3">
+                    <label for="feedername" class="form-label">FeederName:</label>
+                    <InputText id="feedername" @bind-Value="Feeder.FeederName" class="form-control" />
+                    <ValidationMessage For="() => Feeder.FeederName" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/feeders">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string EPF { get; set; }
+
+    [SupplyParameterFromForm]
+    private Feeder? Feeder { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Feeder ??= await context.Feeder.FirstOrDefaultAsync(m => m.EPF == EPF);
+
+        if (Feeder is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateFeeder()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Feeder!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!FeederExists(Feeder!.EPF))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/feeders");
+    }
+
+    private bool FeederExists(string epf)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Feeder.Any(e => e.EPF == epf);
+    }
+}
