@@ -33,20 +33,19 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
-# Corrected .NET Build & Publish step
+
 - task: DotNetCoreCLI@2
   inputs:
     command: 'publish'
     projects: '**/KanbanMBC.csproj'
     arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
 
-# Upload the build artifacts
+
 - task: PublishBuildArtifacts@1
   inputs:
     pathToPublish: '$(Build.ArtifactStagingDirectory)'
     artifactName: 'drop'
 
-# Deploy to Azure Web App
 - task: AzureWebApp@1
   inputs:
     azureSubscription: 'KanbanMBC'
