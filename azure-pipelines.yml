@@ -1,8 +1,3 @@
-# ASP.NET
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
-
 trigger:
 - master
 
@@ -13,6 +8,9 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  ConnectedServiceName: 'e1d18927-a1c2-4453-9896-171fe0f3f90e'
+  WebAppKind: 'webApp'
+  WebAppName: 'SILSEASTADEV01'
 
 steps:
 - task: NuGetToolInstaller@1
@@ -32,3 +30,12 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+- task: AzureRmWebAppDeployment@4
+  displayName: 'Deploy Azure App Service'
+  inputs:
+    azureSubscription: '$(ConnectedServiceName)'
+    appType: '$(WebAppKind)'
+    WebAppName: '$(WebAppName)'
+    packageForLinux: '$(build.artifactStagingDirectory)/**/*.zip'
+
